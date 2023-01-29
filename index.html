@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html xmlns = "http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<script src="https://cdn.socket.io/4.5.4/socket.io.min.js" integrity="sha384-/KNQL8Nu5gCHLqwqfQjA689Hhoqgi2S84SNUxC3roTe4EhJ9AfLkp8QiQcU8AMzI" crossorigin="anonymous"></script>
+	<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Rampart+One&display=swap" rel="stylesheet">
+	<style> @import url('https://fonts.googleapis.com/css2?family=Rampart+One&display=swap'); </style>
+	<title>作曲バトルオンライン</title>
+</head>
+<style>
+	font-family: 'Rampart One', cursive;
+	*{
+		margin:0;
+		padding:0;
+		overflow-y:hidden;
+	}
+	body{
+		margin:0;
+		padding:0;
+	}
+	.zero{
+		padding:0;
+		margin:0;
+	}
+	.fixed{
+		position:fixed;
+	}
+	.centerY{
+		top:calc( var(--vh) * 50 );
+		transform: translateY(-50%);
+	}
+	.centerX{
+		left:50vw;
+		transform: translateX(-50%);
+	}
+	.center{
+		left:50vw;
+		top:calc( var(--vh) * 50 );
+		transform: translate(-50%,-50%);
+	}
+	.maxsize{
+		width:100vw;
+		height:calc( 100 * var(--vh) );
+	}
+	.circle{
+		border-radius:1000px;
+	}
+	.border{
+		display: inline-block;
+		border: double 4px #000;
+	}
+	.none{
+		display:none !important;
+	}
+	.vert{
+		display:flex;
+		flex-flow: column;
+	}
+	.pfont{
+		font-family:'Rampart One'
+	}
+	.shadow{
+		box-shadow: 4px 4px;
+	}
+	.bg-blue{
+		background-color:#EEF;
+	}
+	.bg-white{
+		background-color:#FFF;
+	}
+	.bb{
+		background: rgba(0,0,0,0.5);
+		position:fixed;
+		display:block;
+		top:0;
+		left:0;
+		margin:0;
+		padding:0;
+		width:100vw;
+		height:calc( var(--vh) * 100 );
+	}
+	a:hover{
+		background-color:#BBE;
+	}
+</style>
+<body>
+<div id="modal0" class="maxsize zero">
+<H1 class="pfont fixed centerX">作曲バトルオンライン</H1>
+<img src="test.png" class="circle fixed border" width="50" height="50" style="left:calc(100vw - 10px);top:10px;transform:translateX(-100%);"></img>
+<p style="top:66px;right:39.5px;transform:translateX(50%);font-size:10px;" class="fixed" id="uname">NoName</p>
+<div style="display:inline-block;width:60vw;height:20vw;padding-top:15vw;" class="fixed center">
+	<a class="vert pfont shadow border bg-blue" style="text-align:center;font-size:20px;" onclick="openmodal(1);join();">ランダムマッチ</a><br>
+	<a class="vert pfont shadow border bg-blue" style="text-align:center;font-size:20px;">ルームマッチ</a>
+</div>
+</div>
+<div id="bb" class="bb none">
+</div>
+<div id="modal1" style="width:150vh;height:calc( var(--vh) * 70 );" class="fixed center bg-white border shadow none">
+<a style="font-size:30px;width:40px;line-height:40px;text-align:center;height:40px;left:100%;transform:translate(-50%,-20%)" onclick="cancel();closemodal(1);" class=" fixed circle border bg-blue">x</a>
+<H1 style="position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);" class="pfont">マッチング中...</H1>
+</div>
+<canvas id="can" class="none fixed maxsize zero center bg-gray"></canvas>
+<div id="endmenu" style="display:inline-block;width:30vw;height:calc( var(--vh) * 100 - 8px );right:0;top:0;" class="none fixed border bg-white">
+	<a class="vert border bg-white" style="text-align:center;font-size:20px;" onclick="openmodal(1);join();">退出</a>
+	<a class="vert border bg-white" style="text-align:center;font-size:20px;">ダウンロードする</a>
+	<a class="vert border bg-white" style="text-align:center;font-size:20px;">曲を共有する</a>
+</div>
+<audio id="bgm1" preload>
+  <source src="bgm.mp3" type="audio/mp3">
+</audio>
+<script>
+  const bgm1 = document.querySelector("#bgm1");       // <audio>
+// 指定した音源ファイルをバイナリデータとして取得
+	var frequencyRatioTempered = 1.059463;
+    var isSP, ctx, bufferSource, xml, data;
+	    // コンテキストを生成
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    ctx = new AudioContext();
+    xml = new XMLHttpRequest();
+    xml.responseType = 'arraybuffer';
+    xml.open('GET',"A5.mp3", true);
+    xml.onload = function() {
+        ctx.decodeAudioData(
+            xml.response,
+            function(_data) {
+                data = _data;
+            },
+            function(e) {
+                alert(e.err);
+            }
+        );
+    };
+    xml.send();
+	function playm(note){
+        bufferSource = ctx.createBufferSource();
+        bufferSource.buffer = data;
+		bufferSource.playbackRate.value = Math.pow(frequencyRatioTempered,note-12*5)
+        bufferSource.connect(ctx.destination);
+        bufferSource.start(0);
+	}
+document.addEventListener("touchend", unlockAu, { once:true });
+function unlockAu(){
+      bgm1.play();
+	  bgm1.pause();
+	  bgm1.currentTime=0;
+	  playm(64)
+}
+   function bgmp(){
+       if( ! bgm1.paused ){
+      bgm1.pause();
+    }
+    else{
+      bgm1.play();
+    }
+   }
+   bgm1.addEventListener("ended", ()=>{
+    bgm1.pause();
+  });
+</script>
+<script type="text/javascript">
+function openmodal(n){
+	document.getElementById("modal" + n).classList.remove("none");
+	document.getElementById("bb").classList.remove("none");
+}
+function closemodal(n){
+	document.getElementById("modal" + n).classList.add("none");
+	document.getElementById("bb").classList.add("none");
+}
+function opencan(){
+	document.getElementById("can").classList.remove("none");
+}
+document.documentElement.style.setProperty( '--vh', window.innerHeight/100 + 'px');
+n = 0;
+hei = window.innerHeight *0.85;
+cehei = 20; // 1/16拍子
+cewid = 30;
+maxwid = 10;
+minwid = 100;
+cewid_ = cewid;
+cehei_ = cehei;
+turn = false;
+sx = 0;
+sy = 0;
+notes = new Array();
+for(var i=0;i<=16*8;i++){
+	notes[i]=new Array();
+}
+const fps = 60;
+BarTime = 0;
+bpm = 160;
+bps = bpm/60;
+bpf = bps/fps;
+playtime = 0;
+chocho = [0,1,0,1,0,1,0,0,1,0,1,0];
+btn1 = false;
+btn2 = false;
+pname1 = "NoName";
+pname2 = "NoName";
+latter = false;
+document.getElementById("uname").innerhtml = pname1;
+const socket=io("https://randommatch.glitch.me", {
+	"force new connection" : true,
+	"reconnectionAttempts": "Infinity",
+	"transports" : ["websocket"]
+});
+function join(){
+	socket.emit("match",{name:pname1})
+}
+function cancel(){
+	socket.emit("cancel");
+}
+socket.on("taketop",function(e){
+console.log(e)
+console.log("a")
+})
+socket.on("matched",function(e){
+	setInterval(main,1000/fps);
+	turn = e.turn;
+	pname2 = e.name;
+	closemodal(1);
+	opencan();
+	console.log(e.name);
+	socket.emit("matched");
+	changes2();
+	changes1();
+	closemodal(0);
+	setTimeout(function(){
+		turn = true;
+		latter = true;
+		if(turn == false){var tmpname = pname1;}else{var tmpname = pname2;}
+	},60*1000)
+	setTimeout(function(){
+		alert("Time up");
+		turn = false;
+		latter = false;
+		document.getElementById("endmenu").classList.remove("none")
+	},2*60*1000)
+	if(turn){
+	setTimeout(function(){
+		socket.emit("save",{notes:notes,pname1:pname1,pname2:pname2})
+		console.log("saved")
+	},2*60*1000)
+	}
+})
+socket.on("left",function(){alert("相手が切断しました。");location.reload();})
+function changes1() {
+	document.addEventListener('mousewheel', handle, { passive: false });
+	can = document.getElementById("can");
+	ct = can.getContext("2d");
+	can.width = window.innerWidth;
+	can.height = window.innerHeight;
+	ct.fillRect(0,0,window.innerWidth,window.innerHeight-hei);
+	for(var i=-1;i<=Math.floor(can.width/cewid)+1;i++){
+		line(cewid*i+sx%cewid,0,cewid*i+sx%cewid,can.height)
+	}
+	for(var i=-1;i<=Math.floor(hei/cehei)+1;i++){
+		line(0,window.innerHeight - hei + cehei * i + sy%cehei,can.width,window.innerHeight - hei + cehei * i + sy%cehei)
+	}
+	socket.on("action",(msg) =>{
+		if(msg.type == 0) {//note設置
+			if(notes[msg.x].indexOf(msg.y)==-1){notes[msg.x].push(msg.y)}
+		}
+		if(msg.type == 1) {//note削除
+		let k = notes[msg.x].indexOf(msg.y);
+			if(k!=-1){notes[msg.x].splice(k,1);}
+		}
+	});
+	
+};
+function main(){
+	ct.fillStyle="#FFFFFF";
+	ct.fillRect(0,0,window.innerWidth,window.innerHeight);
+	for(var i=0;i<Math.floor(hei/cehei) + 2;i++){
+		let y = i - Math.ceil(sy/cehei);
+		if(chocho[y%12]==1){ct.fillStyle="#EEEEFF"}else{ct.fillStyle="#FFFFFF"}
+		ct.fillRect(0,window.innerHeight - hei + cehei * i + sy%cehei,window.innerWidth,cehei);
+	}
+	for(var i=-1;i<=Math.floor(can.width/cewid)+1;i++){
+		ct.lineWidth = 1;
+		if(cewid <=25){ct.lineWidth = 0;}
+		if((i - Math.ceil(sx/cewid))%4 == 0){ct.lineWidth = 2;if(cewid <=50){ct.lineWidth = 0;}}
+		if((i - Math.ceil(sx/cewid))%16 == 0){ct.lineWidth = 4;if(cewid <=75){ct.lineWidth = 0;}}
+		line(cewid*i+sx%cewid,0,cewid*i+sx%cewid,can.height)
+	}
+	for(var i=-1;i<=Math.floor(hei/cehei)+1;i++){
+		ct.lineWidth = 1;
+		
+	}
+	for(var i=0;i<=Math.floor(window.innerWidth/cewid)+2;i++){
+		if(notes[i - Math.ceil(sx/cewid)] != null){
+			for (var e of notes[i - Math.ceil(sx/cewid)]) {
+				let x = (i - Math.ceil(sx/cewid))*cewid + sx;
+				let y = e* cehei + window.innerHeight - hei + sy;
+				ct.fillStyle="#000000"
+				ct.fillRect(x,y,cewid,cehei);
+				if(Math.abs(BarTime - (x - sx))<=bpf*cewid*10 && playflag){playm(61 - e);console.log("kokooko")}
+			}
+		}
+	}
+	BarTime = bpf*playtime*4*cewid;
+	ad = 0;
+	
+	if(playflag){playtime++;if(BarTime >= cewid*16*8){playtime--;playflag=false;};ad = adjust();}
+	
+	ct.lineWidth = 4;
+	line(BarTime + sx + ad,0,BarTime + ad + sx,window.innerHeight)
+	if(ad != 0){sx =  - BarTime + window.innerWidth/2;}
+	if(sx>=0){sx=0;}
+	if(f!=0){
+	ct.fillText(f,100,200)
+	}
+	ct.fillStyle="#000000";
+	ct.fillRect(0,0,window.innerWidth,window.innerHeight-hei);
+	ct.fillStyle="#FFFFFF";
+	ct.fillRect(10,10,window.innerHeight-hei-20,window.innerHeight-hei-20)
+	ct.fillStyle="#FFFFFF";
+	ct.fillRect(20+(window.innerHeight-hei-20),10,window.innerHeight-hei-20,window.innerHeight-hei-20)
+	let bsize = (window.innerHeight-hei-20)*0.6
+	ct.fillStyle="#AA4444";
+	ct.beginPath()
+	ct.moveTo(10 + (window.innerHeight - hei - 20 - bsize/2*Math.sqrt(3))/2,10 + (window.innerHeight-hei-20)/2 - bsize/2)
+	ct.lineTo(10 + (window.innerHeight - hei - 20 - bsize/2*Math.sqrt(3))/2,10 + (window.innerHeight-hei-20)/2 + bsize/2)
+	ct.lineTo(10 + (window.innerHeight - hei - 20 - bsize)/2+ bsize/2*Math.sqrt(3),10+(window.innerHeight-hei-20)/2 )
+	ct.closePath()
+	ct.fill();
+	ct.lineWidth = 3
+	ct.stroke()
+	ct.fillStyle="#000000";
+	ct.fillRect(20+(window.innerHeight-hei-20)*1.5 - bsize/2,10 + (window.innerHeight-hei-20)/2-bsize/2,bsize,bsize)
+	ct.fillStyle="#AA4444";
+	ct.fillRect(20+(window.innerHeight-hei-20)*1.5 - bsize/2+3,10 + (window.innerHeight-hei-20)/2-bsize/2+3,bsize-6,bsize-6)
+	ct.lineWidth = 1;
+	//制限描画
+	ct.fillStyle = "rgba(" + [0, 0, 0, 0.5] + ")";
+	if(!latter && !turn){ct.fillRect(0,window.innerHeight-hei,window.innerWidth,window.innerHeight);}
+	if(!latter && turn){ct.fillRect(cewid*16*4 + sx,window.innerHeight-hei,window.innerWidth,window.innerHeight);}
+	if(latter && turn){ct.fillRect(cewid*16*8 + sx,window.innerHeight-hei,window.innerWidth,window.innerHeight);}
+	if(BarTime >= cewid*16*8){playtime = 16*2/bpf;playflag=false;bgm1.pause();}
+	if(BarTime >= cewid*16*4 && !latter){playtime = 16*1/bpf;}
+	if(-sx >= cewid*16*8 - can.width){sx = -cewid*16*8 + can.width;}
+	if(BarTime/bpf/4/cewid == playtime){bgm1.pause();playflag=false;}
+} //if(latter==false){後半4小節が使えない},if(turn == false){全部使えない}
+function adjust(){
+	if(BarTime + sx >= window.innerWidth/2 || BarTime + sx < 0 ){return 1 }
+	return 0
+}
+function line(x,y,ax,ay){
+	ct.beginPath () ;
+	ct.moveTo( x, y ) ;
+	ct.lineTo( ax, ay );
+	ct.stroke();
+}
+function IsInner(x,y,width,height,px,py){
+	return (x<=px && px<=x+width && y<=py && py<=y+height)
+}
+</script>
+<script>
+function changes2(){
+	scroll = false;
+	zoom = false;
+	clicking = false;
+	push = false;
+	mx = 0;
+	my = 0;
+	mx2 = 0;
+	my2 = 0;
+	lastsx = 0;
+	lastsy = 0;
+	lastcewid = cewid;
+	lastcehei = cehei;
+	playflag = false;
+	f = 0;
+	IsHorizon = 0; // -1 vertical 0 neutral 1 horizontal
+
+	document.addEventListener("touchend", function(e){ 
+		var tx = mx + sx;
+		var ty = my + sy;
+		clicking = false;IsHorizon = 0;
+		if(!scroll && !zoom && !push){
+			let x = Math.floor((mx - sx)/cewid);
+			let y = Math.floor((my - sy - window.innerHeight+hei)/cehei)
+			console.log(my)
+			let WStill = notes[x].indexOf(y);
+			if(WStill==-1){
+				if(y>=0){notes[x].push(y);socket.emit("action",{type:0,x:x,y:y});}		
+			}else{
+				if(y>=0){notes[x].splice(WStill,1);socket.emit("action",{type:1,x:x,y:y})}
+			} 
+		}
+		if(push){if(btn1 && !btn2){playflag = !playflag;btn1=false;bgmp()}if(!btn1 && btn2){playtime = 0;btn2=false;bgm1.currentTime=0;};push=false;}
+	});
+
+	document.addEventListener("touchstart", function(e){
+		let tx = e.touches[0].pageX;
+		let ty = e.touches[0].pageY;
+		if(IsInner(10,10,window.innerHeight-hei-20,window.innerHeight-hei-20,tx,ty)){push = true;btn1 = true;}
+		if(IsInner(20+(window.innerHeight-hei-20),10,window.innerHeight-hei-20,window.innerHeight-hei-20,tx,ty)){push = true;btn2 = true;}
+		if(!push){
+			if(e.touches[1] != null){zoom = true;mx2 = e.touches[1].pageX;my2 = e.touches[1].pageY;IsHorizon = 0;}
+			if(e.touches[1] == null){
+				scroll = false;
+				clicking = true;
+				zoom = false;
+				push = false;
+				mx = tx;
+				my = ty;
+				lastsx = sx;
+				lastsy = sy;
+				lastcewid = cewid;lastcehei = cehei;
+			}
+		}
+		
+	})
+
+	document.onmousemove = function(e){ 
+		if(clicking){
+		scroll = true; 
+		if(IsHorizon == 0  && ((e.clientX-mx)**2 >= 1 || (e.clientY - my)**2 >= 1)){if((e.clientX-mx)**2 >= (e.clientY-my)**2){IsHorizon = 1;}else{IsHorizon = -1;}}
+		if(IsHorizon == 1){sx = lastsx + e.clientX - mx};
+		if(IsHorizon == -1){sy = lastsy + e.clientY - my};
+		if(sx > 0){sx = 0;};if(sy > 0){sy=0;}
+	
+		}
+	}
+	document.addEventListener('keypress', keypress_ivent);
+	document.addEventListener('keyup', keyup_ivent);
+	document.addEventListener('touchmove',function(e){ 
+		e.preventDefault()
+		let tx = e.touches[0].pageX;
+		let ty = e.touches[0].pageY;
+		if(e.touches[1] != null){zoom = true;}
+		if(clicking && !zoom && !push){
+		scroll = true; 
+		if(IsHorizon == 0  && ((tx-mx)**2 >= 1 || (ty - my)**2 >= 1)){if((tx-mx)**2 >= (ty-my)**2){IsHorizon = 1;}else{IsHorizon = -1;}}
+		if(IsHorizon == 1){sx = lastsx + tx - mx};
+		if(IsHorizon == -1){sy = lastsy + ty - my};
+		if(sx > 0){sx = 0;};if(sy > 0){sy=0;};if(sx<=-cewid*16*8 + can.width){sx = -cewid*16*8 + can.width;}
+		}
+		if(clicking && zoom && !scroll && !push){
+			var tx2 = e.touches[1].pageX;var ty2 = e.touches[1].pageY;
+			let dx1 = tx - mx;let dy1 = ty - my;let dx2 = tx2 - mx2;let dy2 = ty2 - my2;
+			if(IsHorizon == 0 && (dx1**2 >= 1 || dy1**2 >= 1 || dx2**2 >= 1 || dy2**2 >= 1)){if((dx1 - dx2)**2 >= (dy1 - dy2)**2){IsHorizon = 1;}else{IsHorizon = -1;}}
+			let k = (dx1-dx2);if(tx - tx2<=0){k = -k}
+			let l = (dy1-dy2);if(ty - ty2<=0){l = -l;}
+			if(IsHorizon == 1 && cewid <=maxwid && cewid >= minwid){cewid = lastcewid + k;if(cewid >= maxwid){cewid = maxwid;};if(cewid <= minwid){cewid = minwid;};sx = -((mx+mx2)/2-lastsx)*cewid/lastcewid + ((mx+mx2)/2);if(sx>=0){sx=0};if(sx<=-cewid*16*8 + can.width){sx = -cewid*16*8 + can.width;}}
+			if(IsHorizon == -1 && cehei <=maxwid && cehei >= minwid){cehei = lastcewid + l;if(cehei >= maxwid){cehei = maxwid;};if(cehei <=minwid){cehei = minwid;};sy = -((my+my2)/2-lastsy)*cehei/lastcehei + ((my+my2)/2);if(sy>=0){sy=0;}}
+		}
+		
+	},{ passive: false } );
+	function keypress_ivent(e) {
+		if(e.key==" "){playflag=!playflag};
+		if(e.key=="p"){playtime = 0;}
+		return false; 
+	}
+
+	function keyup_ivent(e) {
+		return false; 
+	}
+}
+function handle(event) {
+	event.preventDefault();
+}
+document.addEventListener("dblclick", function(e){ e.preventDefault();}, { passive: false });
+</script>
+</body>
+</html>
